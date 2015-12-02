@@ -208,6 +208,58 @@ def test_uninstall_rollback(script, data):
     )
 
 
+def test_editable_replaces_installed(script, data):
+    """
+    Test replacing an already installed package with an editable package of the same name.
+    """
+    pkg_path = data.packages.join("FSPkg")
+
+    # Normal install first
+    result = script.pip(
+        'install', pkg_path
+    )
+    assert script.site_packages / 'fspkg' / '__init__.py' in result.files_created, list(
+        result.files_created.keys()
+    )
+
+    # Now try with -e
+    result = script.pip(
+        'install', '-e', pkg_path
+    )
+    assert script.site_packages / 'FSPkg.egg-link' in result.files_created, list(
+        result.files_created.keys()
+    )
+
+
+def test_editable_replaces_installed_as_dep(script, data):
+    """
+    Test replacing an already installed package with an editable package of the same name,
+    where the package we are makign editable is also a dependency of another package we are
+    installing.
+    """
+    lib_pkg_path = data.packages.join("interdependent", "foolib")
+    client_pkg_path = data.packages.join("interdependent", "fooclient")
+
+    # Normal install first
+    result = script.pip(
+        'install', lib_pkg_path
+    )
+    assert script.site_packages / 'foolib.py' in result.files_created, list(
+        result.files_created.keys()
+    )
+
+    # Now try with -e
+    result = script.pip(
+        'install', client_pkg_path, '-e', lib_pkg_path
+    )
+    assert script.site_packages / 'foolib.egg-link' in result.files_created, list(
+        result.files_created.keys()
+    )
+    assert script.site_packages / 'foolib.py' in result.files_deleted, list(
+        result.files_created.keys()
+    )
+
+
 # Issue #530 - temporarily disable flaky test
 @pytest.mark.skipif
 def test_editable_git_upgrade(script):
